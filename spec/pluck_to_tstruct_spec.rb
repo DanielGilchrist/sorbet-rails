@@ -82,6 +82,20 @@ RSpec.describe SorbetRails::PluckToTStruct do
     end
   end
 
+  class WizardCoercedT < T::Struct
+    const :name, String
+    const :house, Symbol
+
+    def ==(other)
+      return false unless other.is_a?(self.class)
+      name == other.name && house == other.house
+    end
+
+    def eql?(other)
+      self == other
+    end
+  end
+
   shared_examples 'pluck_to_tstruct' do |struct_type, expected_values|
     it 'plucks correctly from ActiveRecord model' do
       plucked = Wizard.pluck_to_tstruct(TA[struct_type].new)
@@ -102,6 +116,18 @@ RSpec.describe SorbetRails::PluckToTStruct do
 
     it 'plucks correctly from ActiveRecord relation with associations' do
       plucked = Wizard.all.joins(:wand).pluck_to_tstruct(TA[struct_type].new, associations: associations)
+      expect(plucked).to match_array(expected_values)
+    end
+  end
+
+  shared_examples 'pluck_to_tstruct with coerced types' do |struct_type, expected_values|
+    it 'plucks correctly from ActiveRecord model with coerced types' do
+      plucked = Wizard.pluck_to_tstruct(TA[struct_type].new, coerce_types: true)
+      expect(plucked).to match_array(expected_values)
+    end
+
+    it 'plucks correctly from ActiveRecord relation with coerced types' do
+      plucked = Wizard.all.pluck_to_tstruct(TA[struct_type].new, coerce_types: true)
       expect(plucked).to match_array(expected_values)
     end
   end
@@ -148,5 +174,14 @@ RSpec.describe SorbetRails::PluckToTStruct do
     ]
 
     it_should_behave_like 'pluck_to_tstruct with associations', WizardWithWandT, associations, expected
+  end
+
+  context 'pluck_to_tstruct with coerced types' do
+    expected = [
+      WizardCoercedT.new(name: "Harry Potter", house: :Gryffindor),
+      WizardCoercedT.new(name: "Hermione Granger", house: :Gryffindor),
+    ]
+
+    it_should_behave_like 'pluck_to_tstruct with coerced types', WizardCoercedT, expected
   end
 end
